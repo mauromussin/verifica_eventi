@@ -125,25 +125,83 @@ def identify_and_calculate_events(df, threshold, duration):
                             "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"])
     return results_df
 
-def read_and_process_dbTrait(file_path):
-    # Read the file into a DataFrame, skipping the first 8 rows and the last row
-    df = pd.read_csv(file_path, skiprows=9, skipfooter=1, engine='python', 
-                     delimiter='\t', decimal=',',names=['Time', 'LAeq'])
-    
-    # Replace comma with point in the decimal separator
-    df['LAeq'] = df['LAeq'].astype(str).replace(',', '.').astype(float)
-    
-    return df
 def read_file_his(file_path):
-    # Read the file into a DataFrame, skipping the first 8 rows
-    day = file_path.split('.his')[0][9:17]  # Estrai il giorno dal nome del file
-    df = pd.read_csv(file_path, skiprows=18, delimiter='\s+', usecols=[0, 1], 
-                     names=['Time', 'LAeq'], encoding='latin1')
-    # Add day to time and convert to datetime format
-    df['Time'] = df['Time'].apply(lambda x: datetime.strptime(f"{day} {x}", 
-                        "%d%m%Y %H:%M:%S.%f").strftime("%d/%m/%Y %H:%M:%S"))
-    return df
+    # Read the file into a DataFrame, skipping the first 18 rows
+    # No CSV flag on TranslateHis.exe
+    try:
+        with open(file_path, 'r', encoding='latin1') as f:
+            lines = f.readlines()
 
+        # Estrai la data dalla riga 7
+        date_str = lines[6].split('\t')[-1].strip()  # Ottiene l'ultimo elemento dopo la divisione e rimuove gli spazi extra
+        date_obj = datetime.strptime(date_str, '%d/%m/%Y').date()
+        
+        # Leggi i dati dal file, saltando le prime 19 righe
+        df = pd.read_csv(file_path, skiprows=16, sep='\t', encoding='latin1',usecols=[0, 1], names=['Time', 'LAeq'])
+        
+        if 'Time' not in df.columns:
+            print(f"Errore: Colonna 'Time' non trovata nel file {file_path}")
+            return None
+        # Combina la data con i tempi e formatta come datetime
+        df['Time'] = df['Time'].apply(lambda x: datetime.strptime(f"{date_obj} {x}", '%Y-%m-%d %H:%M:%S.%f').strftime('%d/%m/%Y %H:%M:%S'))
+        df['LAeq'] = pd.to_numeric(df['LAeq'], errors='coerce')  # 'coerce' sostituisce i valori non validi con NaN
+        return df
+
+    except FileNotFoundError:
+        print(f'Errore di lettura in {file_path}: file non trovato')
+        return None
+    except ValueError as e:
+        print(f'Errore di formato data/ora in {file_path}: {e}')
+        return None
+    except pd.errors.ParserError as e:
+        print(f'Errore durante la lettura del file {file_path}: {e}')
+        return None
+    except Exception as e:
+        print(f'Errore inatteso durante la lettura del file {file_path}: {e}')
+        return None
+
+
+def read_and_process_dbTrait(file_path):
+    try:
+        # Prova a leggere il file con s=8 (formato dBTrait)
+        df1 = pd.read_csv(file_path, skiprows=9, skipfooter=1, engine='python', delimiter='\t', decimal=',', names=['Time', 'LAeq'])
+        df2 = pd.read_csv(file_path, skiprows=7, engine='python', delimiter=';', decimal=',', names=['Time', 'LAeq'])
+        """        
+        vedere com'è l'ultimo elemento
+        """
+        df=df1
+        df['LAeq'] = df['LAeq'].astype(str).replace(',', '.').astype(float)
+        return df
+    except Exception as e:
+                print(f'Errore di lettura in {file_path}: formato non supportato')
+                return None
+
+# funzione che legge sia NNW che dBTrait
+def read_and_process_file(file_path):
+    try:
+       with open(file_path, 'r') as f:
+           lines = f.readlines()
+
+       # Verifica il formato del file
+       if ';' in lines[6]:  # Riga 7
+           df = pd.read_csv(file_path, skiprows=7, engine='python', delimiter=';', decimal=',', names=['Time', 'LAeq'])
+       elif '\t' in lines[9]:  # Riga 10
+           df = pd.read_csv(file_path, skiprows=10, engine='python', delimiter='\t', decimal=',', names=['Time', 'LAeq'])
+       else:
+           print(f'Errore di lettura in {file_path}: formato non riconosciuto')
+           return None
+
+       # Conversione della colonna 'LAeq' in float
+       df['LAeq'] = df['LAeq'].astype(str).str.replace(',', '.').astype(float)
+       return df
+
+    except FileNotFoundError:
+       print(f'Errore di lettura in {file_path}: file non trovato')
+       return None
+    except Exception as e:
+       print(f'Errore di lettura in {file_path}: {e}')
+       return None
+    
 def merge_dataframes(df_staz, df_ARPA):
     # Filter df_staz to keep only rows with times that exist in df_ARPA
     filtered_df_staz = df_staz[df_staz['Time'].isin(df_ARPA['Time'])]
@@ -194,7 +252,74 @@ def confronta_distribuzioni(df):
         else:
             print("  Le distribuzioni sono probabilmente diverse.")
 
+def read_csv_to_dataframe(file_path):
+    # Leggi il file CSV in un DataFrame
+    df = pd.read_csv(file_path, delimiter=';')
+    return df
 
+def process_and_merge_files(input_file_path):
+    """
+    Legge un file di input, legge i file specificati nelle colonne 'file_staz' e 'file_ARPA',
+    unisce i DataFrame e converte la colonna 'Time' in formato datetime.
+
+    Args:
+        input_file_path (str): Percorso del file di input.
+
+    Returns:
+        pandas.DataFrame: DataFrame unito, o None in caso di errori.
+    """
+    try:
+        # Leggi il file di input
+        input_df = pd.read_csv(input_file_path,sep=';')
+
+        # Inizializza una lista per i DataFrame uniti
+        merged_dfs = []
+
+        # Itera sulle righe del DataFrame di input
+        for index, row in input_df.iterrows():
+            file_staz_path = row['file_staz']
+            file_arpa_path = row['file_ARPA']
+            print(f'Elaborazione dei file stazione:{file_staz_path} ARPA {file_arpa_path}')
+            # Leggi i file con le funzioni specificate
+            df_staz = read_file_his(file_staz_path)
+            df_arpa = read_and_process_file(file_arpa_path)
+
+            # Verifica se la lettura dei file ha avuto successo
+            if df_staz is None or df_arpa is None:
+                print(f"Errore: Impossibile leggere file per la riga {index}")
+                continue  # Passa alla riga successiva
+
+            # Unisci i DataFrame
+            merged_df = merge_dataframes(df_staz, df_arpa)
+
+            # Converti la colonna 'Time' in datetime
+            merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
+
+            merged_dfs.append(merged_df)
+
+        # Concatena tutti i DataFrame uniti in uno singolo
+        if merged_dfs:
+            final_merged_df = pd.concat(merged_dfs, ignore_index=True)
+            return final_merged_df
+        else:
+            return None
+
+    except FileNotFoundError:
+        print(f"Errore: File di input '{input_file_path}' non trovato.")
+        return None
+    except Exception as e:
+        print(f"Errore inatteso: {e}")
+        return None
+
+
+input_file = 'MXP-1-2024.CSV' #sostituisci il percorso
+
+result_df = process_and_merge_files(input_file)
+
+if result_df is not None:
+    print(result_df)
+
+"""
 # Esempio di utilizzo
 # Leggo i dati della stazione
 file_path = './data/0815112023.his.txt'
@@ -211,7 +336,7 @@ merged_df = merge_dataframes(df_staz, df_ARPA)
 merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
 print("Inizio il plot...")
 output_file='./data/merged_plot.png'
-#plot_merged_df(merged_df,output_file)
+plot_merged_df(merged_df,output_file)
 
 #Ciclo riconoscimento eventi
 
@@ -223,4 +348,4 @@ events_values_df = identify_and_calculate_events(merged_df, threshold, duration)
 print(events_values_df)
 events_values_df.to_csv(output_file,index=False,float_format='%.2f')
 confronta_distribuzioni(events_values_df)
-
+"""
