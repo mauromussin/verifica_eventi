@@ -13,6 +13,54 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import bokeh
 from scipy import stats
+import plotly.graph_objects as go
+
+import plotly.io as pio
+
+def plot_merged_df_plotly(merged_df, output_file=None):
+    """
+    Plotta il contenuto del DataFrame merged_df usando Plotly.
+
+    Args:
+        merged_df (pd.DataFrame): Il DataFrame da plottare.
+        output_file (str, optional): Il percorso del file in cui salvare il grafico HTML.
+                                     Se None, il grafico viene mostrato nel browser.
+    """
+
+    # Verifica che il DataFrame contenga le colonne necessarie
+    if 'Time' not in merged_df.columns or 'LAeq_x' not in merged_df.columns or 'LAeq_y' not in merged_df.columns:
+        print("Errore: Il DataFrame deve contenere le colonne 'Time', 'LAeq_x' e 'LAeq_y'.")
+        return
+
+    # Converti la colonna 'Time' in datetime, se necessario
+    if not pd.api.types.is_datetime64_any_dtype(merged_df['Time']):
+        merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
+
+    # Crea il grafico Plotly
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_x'], mode='lines', name='LAeq_staz', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_y'], mode='lines', name='LAeq_ARPA', line=dict(color='red')))
+
+    # Aggiungi etichette e titolo
+    fig.update_layout(
+        title='LAeq over Time',
+        xaxis_title='Time',
+        yaxis_title='LAeq'
+    )
+
+    # Mostra o salva il grafico
+    if output_file:
+        pio.write_html(fig, file=output_file, auto_open=False)
+        print(f"Grafico salvato in {output_file}")
+    else:
+        fig.show()
+
+# Esempio di utilizzo:
+# Supponiamo di avere un DataFrame chiamato merged_df
+# merged_df = ...
+
+# plot_merged_df_plotly(merged_df, output_file='merged_plot.html') #per salvare il plot come file HTML
+# plot_merged_df_plotly(merged_df) #per visualizzare il plot nel browser
 
 #Funzione che crea il grafico in parallelo
 def plot_merged_df(merged_df,output_file):
@@ -122,6 +170,10 @@ def identify_and_calculate_events(df, threshold, duration):
 
     results_df = pd.DataFrame(results, columns=["First Time", "SEL_staz", "d",
                                                     "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"])
+   
+    
+    #calcola la statistica degli eventi identificati
+    confronta_distribuzioni(results_df)
     return results_df
 
 def read_file_his(file_path):
@@ -282,10 +334,12 @@ def process_and_merge_files(input_file_path):
             merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
             # Applica identify_and_calculate_events
             results_df = identify_and_calculate_events(merged_df, threshold, duration)
-
+            
             # Salva i risultati in un file CSV (append)
-            output_file=f'{staz}_output_events.csv'
-            save_results_to_csv(results_df, output_file)
+            output_file=f'{staz}_output_events'
+            #plotta
+            plot_merged_df_plotly(merged_df,output_file+'.html') #per visualizzare il plot nel browser 
+            save_results_to_csv(results_df, output_file+'.csv')
             merged_dfs.append(merged_df)
 
         # Concatena tutti i DataFrame uniti in uno singolo
