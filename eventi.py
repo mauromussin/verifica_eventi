@@ -79,7 +79,7 @@ def calculate_event_values(events, day):
 def identify_and_calculate_events(df, threshold, duration):
     events = []
     current_event = []
-    
+
     for index, row in df.iterrows():
         time = row['Time']
         laeq_x = row['LAeq_x']
@@ -92,37 +92,36 @@ def identify_and_calculate_events(df, threshold, duration):
             current_event = []
     if len(current_event) >= duration:
         events.append(current_event)
-    
+
     results = []
     for event in events:
         values_x = [10 ** (laeq_x / 10) for time, laeq_x, laeq_y in event]
         values_y = [10 ** (laeq_y / 10) for time, laeq_x, laeq_y in event]
-        
+
         total_sum_x = sum(values_x)
         total_sum_y = sum(values_y)
-        
+
         result_x = 10 * math.log10(total_sum_x)
         result_y = 10 * math.log10(total_sum_y)
-        
-        # Calculate additional values
+
         first_time = min(time for time, laeq_x, laeq_y in event)
         formatted_dt = first_time.strftime("%d/%m/%Y %H:%M:%S")
 
         sel_x = result_x
         sel_y = result_y
-        
+
         n = len(event)
-        
+
         laeq_value_x = result_x - 10 * math.log10(n)
         laeq_value_y = result_y - 10 * math.log10(n)
-        
+
         lmax_x = max(laeq_x for time, laeq_x, laeq_y in event)
         lmax_y = max(laeq_y for time, laeq_x, laeq_y in event)
-        
+
         results.append((formatted_dt, sel_x, n, laeq_value_x, lmax_x, sel_y, laeq_value_y, lmax_y))
-        # Convert results to a DataFrame
-        results_df = pd.DataFrame(results, columns=["First Time", "SEL_staz", "d", 
-                            "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"])
+
+    results_df = pd.DataFrame(results, columns=["First Time", "SEL_staz", "d",
+                                                    "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"])
     return results_df
 
 def read_file_his(file_path):
@@ -159,22 +158,6 @@ def read_file_his(file_path):
     except Exception as e:
         print(f'Errore inatteso durante la lettura del file {file_path}: {e}')
         return None
-
-
-def read_and_process_dbTrait(file_path):
-    try:
-        # Prova a leggere il file con s=8 (formato dBTrait)
-        df1 = pd.read_csv(file_path, skiprows=9, skipfooter=1, engine='python', delimiter='\t', decimal=',', names=['Time', 'LAeq'])
-        df2 = pd.read_csv(file_path, skiprows=7, engine='python', delimiter=';', decimal=',', names=['Time', 'LAeq'])
-        """        
-        vedere com'è l'ultimo elemento
-        """
-        df=df1
-        df['LAeq'] = df['LAeq'].astype(str).replace(',', '.').astype(float)
-        return df
-    except Exception as e:
-                print(f'Errore di lettura in {file_path}: formato non supportato')
-                return None
 
 # funzione che legge sia NNW che dBTrait
 def read_and_process_file(file_path):
@@ -213,9 +196,9 @@ def merge_dataframes(df_staz, df_ARPA):
 
 
 def save_results_to_csv(results, output_file):
-    df = pd.DataFrame(results, columns=["First Time", "SEL_staz", "N", "LAeq_staz", 
-        "LMax_staz","SEL_ARPA","LAeq_ARPA","LMAX_ARPA"])
-    df.to_csv(output_file, index=False,float_format='%.2f')
+    df = pd.DataFrame(results, columns=["First Time", "SEL_staz", "d", "LAeq_staz",
+                                        "LMax_staz","SEL_ARPA","LAeq_ARPA","LMax_ARPA"])
+    df.to_csv(output_file, index=False, float_format='%.2f', mode='a', header=False)
 
 def confronta_distribuzioni(df):
     """
@@ -279,6 +262,9 @@ def process_and_merge_files(input_file_path):
         for index, row in input_df.iterrows():
             file_staz_path = row['file_staz']
             file_arpa_path = row['file_ARPA']
+            threshold = row['thr']
+            duration = row['dur']
+            staz=row['id']
             print(f'Elaborazione dei file stazione:{file_staz_path} ARPA {file_arpa_path}')
             # Leggi i file con le funzioni specificate
             df_staz = read_file_his(file_staz_path)
@@ -294,7 +280,12 @@ def process_and_merge_files(input_file_path):
 
             # Converti la colonna 'Time' in datetime
             merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
+            # Applica identify_and_calculate_events
+            results_df = identify_and_calculate_events(merged_df, threshold, duration)
 
+            # Salva i risultati in un file CSV (append)
+            output_file=f'{staz}_output_events.csv'
+            save_results_to_csv(results_df, output_file)
             merged_dfs.append(merged_df)
 
         # Concatena tutti i DataFrame uniti in uno singolo
