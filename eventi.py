@@ -41,17 +41,23 @@ def plot_merged_df_plotly(merged_df, output_file=None):
     fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_x'], mode='lines', name='LAeq_staz', line=dict(color='blue')))
     fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_y'], mode='lines', name='LAeq_ARPA', line=dict(color='red')))
 
-    # Aggiungi etichette e titolo
+    
+    # prendi l'id della stazione
+    elementi = output_file.split("_")
+    staz=elementi[0]
+
+   # Aggiungi etichette e titolo
     fig.update_layout(
-        title='LAeq over Time',
+        title=f'LAeq over Time per staz={staz}',
         xaxis_title='Time',
         yaxis_title='LAeq'
     )
-
+    
     # Mostra o salva il grafico
     if output_file:
         pio.write_html(fig, file=output_file, auto_open=False)
         print(f"Grafico salvato in {output_file}")
+        fig.write_image(f"{output_file}.png")
     else:
         fig.show()
 
@@ -173,7 +179,7 @@ def identify_and_calculate_events(df, threshold, duration):
    
     
     #calcola la statistica degli eventi identificati
-    confronta_distribuzioni(results_df)
+    
     return results_df
 
 def read_file_his(file_path):
@@ -252,40 +258,56 @@ def save_results_to_csv(results, output_file):
                                         "LMax_staz","SEL_ARPA","LAeq_ARPA","LMax_ARPA"])
     df.to_csv(output_file, index=False, float_format='%.2f', mode='a', header=False)
 
-def confronta_distribuzioni(df):
+def confronta_distribuzioni(df,output_file):
     """
     Calcola le medie e le varianze delle colonne specificate, confronta le medie e le varianze tra coppie di colonne
     e verifica con un test statistico se le coppie di colonne provengono dalla stessa distribuzione.
 
     Args:
         df (pd.DataFrame): Il DataFrame contenente i dati.
-
+        output_file: il file dove vengono stampati i dati (di tipo markdown, estensione aggiunta automaticamente)
     Returns:
         None
     """
+    # Definisci l'ordine desiderato delle colonne
+    ordine_colonne = ["First Time", "d", "SEL_staz", "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"]
+    # Riordina il DataFrame
+    df = df[ordine_colonne]
 
-    # Calcola le medie
-    medie = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].mean()
-    print("Medie:\n", medie)
+    fileout=output_file+'.stats.html'
+    # Aggiungi intestazione HTML
+    with open(fileout, "w") as f:
+      f.write("<html><head><title>Confronto Distribuzioni</title></head><body>")
+      f.write("<h1>Confronto delle Distribuzioni</h1>")
+      
+      # Tabella degli eventi in parallelo
+      f.write("<h2>Eventi in parallelo</h2>")
+      f.write(df.to_html(index=False,float_format="%.2f"))
+      f.write("<br><br>")
+      
+      # Calcola le medie
+      medie = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].mean()
+      
+      # Calcola le varianze
+      varianze = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].var()
+     
+      risultati = []     
+      # Confronta le medie e le varianze tra coppie di colonne
+      coppie = [('SEL_staz', 'SEL_ARPA'), ('LAeq_staz', 'LAeq_ARPA'), ('LMax_staz', 'LMax_ARPA')]
+      for col1, col2 in coppie:
+          # Test di Kolmogorov-Smirnov
+          stat, p = stats.ks_2samp(df[col1], df[col2])
+          esito = "simili" if p > 0.05 else "diverse"
+          risultati.append([col1, medie[col1], varianze[col1], "", "", ""])
+          risultati.append([col2, medie[col2], varianze[col2], stat, p, esito])
+          
+      # Creazione DataFrame per tabella HTML
+      tabella_df = pd.DataFrame(risultati, columns=["Colonna", "Medie", "Varianza", "Test K-S", "p-value", "Esito"])   
+      f.write(tabella_df.to_html(index=False))
+      # Chiudi il tag body e html
+      f.write("</body></html>")
 
-    # Calcola le varianze
-    varianze = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].var()
-    print("\nVarianze:\n", varianze)
-
-    # Confronta le medie e le varianze tra coppie di colonne
-    coppie = [('SEL_staz', 'SEL_ARPA'), ('LAeq_staz', 'LAeq_ARPA'), ('LMax_staz', 'LMax_ARPA')]
-    for col1, col2 in coppie:
-        print(f"\nConfronto tra {col1} e {col2}:")
-        print(f"  Media {col1}: {medie[col1]:.2f}, Media {col2}: {medie[col2]:.2f}")
-        print(f"  Varianza {col1}: {varianze[col1]:.2f}, Varianza {col2}: {varianze[col2]:.2f}")
-
-        # Esegui il test di Kolmogorov-Smirnov per verificare se le distribuzioni sono simili
-        stat, p = stats.ks_2samp(df[col1], df[col2])
-        print(f"  Test di Kolmogorov-Smirnov: Statistica = {stat:.3f}, p-value = {p:.3f}")
-        if p > 0.05:
-            print("  Le distribuzioni sono probabilmente simili.")
-        else:
-            print("  Le distribuzioni sono probabilmente diverse.")
+    print(f"HTML creato con successo: {fileout}")
 
 def read_csv_to_dataframe(file_path):
     # Leggi il file CSV in un DataFrame
@@ -337,7 +359,11 @@ def process_and_merge_files(input_file_path):
             
             # Salva i risultati in un file CSV (append)
             output_file=f'{staz}_output_events'
-            #plotta
+            
+            #Calcola le statistiche e stampa il file md
+            confronta_distribuzioni(results_df,output_file)
+            
+            # plotta il grafico e stampa il file png
             plot_merged_df_plotly(merged_df,output_file+'.html') #per visualizzare il plot nel browser 
             save_results_to_csv(results_df, output_file+'.csv')
             merged_dfs.append(merged_df)
@@ -364,33 +390,4 @@ result_df = process_and_merge_files(input_file)
 if result_df is not None:
     print(result_df)
 
-"""
-# Esempio di utilizzo
-# Leggo i dati della stazione
-file_path = './data/0815112023.his.txt'
-# print(os.path.isfile(file_path),os.listdir("."))
-#day = file_path.split('.his')[0][9:17]  # Estrai il giorno dal nome del file
-df_staz=read_file_his(file_path)
-#lettura dBTrait
-file_path = './data/santasavina.txt'
-df_ARPA = read_and_process_dbTrait(file_path)
 
-merged_df = merge_dataframes(df_staz, df_ARPA)
-
-#Setto Time come datetime x bokeh
-merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
-print("Inizio il plot...")
-output_file='./data/merged_plot.png'
-plot_merged_df(merged_df,output_file)
-
-#Ciclo riconoscimento eventi
-
-threshold = 60.0
-duration = 20
-output_file = './data/event_values.csv'
-events_values_df=pd.DataFrame()
-events_values_df = identify_and_calculate_events(merged_df, threshold, duration)
-print(events_values_df)
-events_values_df.to_csv(output_file,index=False,float_format='%.2f')
-confronta_distribuzioni(events_values_df)
-"""
