@@ -17,7 +17,7 @@ import plotly.graph_objects as go
 
 import plotly.io as pio
 
-def plot_merged_df_plotly(merged_df, output_file=None):
+def plot_merged_df_plotly(merged_df, output_file=None, y_min=35, y_max=90, soglia=None, Nome=None):
     """
     Plotta il contenuto del DataFrame merged_df usando Plotly.
 
@@ -25,6 +25,10 @@ def plot_merged_df_plotly(merged_df, output_file=None):
         merged_df (pd.DataFrame): Il DataFrame da plottare.
         output_file (str, optional): Il percorso del file in cui salvare il grafico HTML.
                                      Se None, il grafico viene mostrato nel browser.
+        y_min (float, optional): Il valore minimo della scala delle ordinate.
+        y_max (float, optional): Il valore massimo della scala delle ordinate.
+        soglia (float, optional): Il valore di soglia per la linea tratteggiata.
+        Nome (string): nome della stazione                             
     """
 
     # Verifica che il DataFrame contenga le colonne necessarie
@@ -38,19 +42,36 @@ def plot_merged_df_plotly(merged_df, output_file=None):
 
     # Crea il grafico Plotly
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_x'], mode='lines', name='LAeq_staz', line=dict(color='blue')))
-    fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_y'], mode='lines', name='LAeq_ARPA', line=dict(color='red')))
+    fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_x'], mode='lines', 
+                             name='LAeq_staz', line=dict(color='blue', width=1)))
+    fig.add_trace(go.Scatter(x=merged_df['Time'], y=merged_df['LAeq_y'], mode='lines', 
+                             name='LAeq_ARPA', line=dict(color='red',width=1)))
 
+    # Aggiungi la linea di soglia tratteggiata, se specificata
+    if soglia is not None:
+        fig.add_trace(go.Scatter(x=merged_df['Time'], y=[soglia]*len(merged_df), mode='lines', name='Soglia', line=dict(color='green', dash='dash', width=1)))
     
-    # prendi l'id della stazione
-    elementi = output_file.split("_")
-    staz=elementi[0]
+    if Nome is None:    
+    # prendi l'id della stazione se non viene passato il nome
+        elementi = output_file.split("_")
+        staz=elementi[0]
+        Nome=f'Stazione n. {staz}'
 
    # Aggiungi etichette e titolo
     fig.update_layout(
-        title=f'LAeq over Time per staz={staz}',
-        xaxis_title='Time',
-        yaxis_title='LAeq'
+        title=f'Andamento del LAeq nel tempo per {Nome}',
+        xaxis_title='Ora',
+        yaxis_title='LAeq',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.3,
+            xanchor="center",
+            x=0.5
+        ),
+        width=1300,
+        height=600,
+        yaxis=dict(range=[y_min, y_max])
     )
     
     # Mostra o salva il grafico
@@ -256,7 +277,7 @@ def merge_dataframes(df_staz, df_ARPA):
 def save_results_to_csv(results, output_file):
     df = pd.DataFrame(results, columns=["First Time", "SEL_staz", "d", "LAeq_staz",
                                         "LMax_staz","SEL_ARPA","LAeq_ARPA","LMax_ARPA"])
-    df.to_csv(output_file, index=False, float_format='%.2f', mode='a', header=False)
+    df.to_csv(output_file, index=False, float_format='%.2f', mode='a', header=True)
 
 def confronta_distribuzioni(df,output_file):
     """
@@ -339,6 +360,7 @@ def process_and_merge_files(input_file_path):
             threshold = row['thr']
             duration = row['dur']
             staz=row['id']
+            Nome_stazione=row['Nome']
             print(f'Elaborazione dei file stazione:{file_staz_path} ARPA {file_arpa_path}')
             # Leggi i file con le funzioni specificate
             df_staz = read_file_his(file_staz_path)
@@ -356,7 +378,8 @@ def process_and_merge_files(input_file_path):
             merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
             # Applica identify_and_calculate_events
             results_df = identify_and_calculate_events(merged_df, threshold, duration)
-            
+            Max=df_staz['LAeq'].max()
+            Min = df_staz[df_staz['LAeq'] > 0]['LAeq'].min()
             # Salva i risultati in un file CSV (append)
             output_file=f'{staz}_output_events'
             
@@ -364,7 +387,7 @@ def process_and_merge_files(input_file_path):
             confronta_distribuzioni(results_df,output_file)
             
             # plotta il grafico e stampa il file png
-            plot_merged_df_plotly(merged_df,output_file+'.html') #per visualizzare il plot nel browser 
+            plot_merged_df_plotly(merged_df,output_file+'.html',y_max=Max,y_min=Min,soglia=threshold,Nome=Nome_stazione) #per visualizzare il plot nel browser 
             save_results_to_csv(results_df, output_file+'.csv')
             merged_dfs.append(merged_df)
 

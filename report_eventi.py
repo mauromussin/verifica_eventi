@@ -148,75 +148,112 @@ def convert_html_to_pdf(input_html, output_pdf):
 
 from PyPDF2 import PdfReader, PdfWriter
 from PyPDF2.errors import PdfReadError
-from PIL import Image as PILImage    
-
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image
+import pdfkit
+import os
+from bs4 import BeautifulSoup
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spacer
+import pdfkit
+import os
 def convert_html_to_pdf_with_image(input_html, output_pdf, image_path):
     """
-    Converte un file HTML in PDF, inserendo un'immagine PNG nella stessa pagina della tabella e occupando tutto lo spazio orizzontale.
+    Converte un file HTML in PDF, inserendo un'immagine PNG all'inizio della pagina
+    e posizionando le due tabelle subito dopo senza sovrapposizioni.
     """
 
-    options = {
-        "enable-local-file-access": "",
-        "user-style-sheet": "body { font-size: 10pt; }"
-    }
+    # Dimensioni della pagina
+    width, _ = letter
+    margin = 72  # Margine di 1 pollice
+    img_width = width   # Occupa quasi tutta la larghezza
+    img_height = img_width * 2 / 3  # Mantiene le proporzioni
 
-    temp_pdf = "temp.pdf"
-    pdfkit.from_file(input_html, temp_pdf, options=options)
+    # Intestazioni delle tabelle
+    table1_header = ["First Time", "d", "SEL_staz", "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"]
+    #table1_header = ["First Time", "d", "SEL_staz", "SEL_ARPA", "LAeq_staz", "LAeq_ARPA", "LMax_staz", "LMax_ARPA"]
+    table2_header = ["Parametro", "Media", "Varianza", "Test K-S", "p-value", "Esito confronto"]
 
-    try:
-        # Apri il PDF temporaneo
-        with open(temp_pdf, "rb") as temp_file:
-            reader = PdfReader(temp_file)
-            writer = PdfWriter()
+    # Estrai i dati delle tabelle dal file HTML
+    table1_data, table2_data = extract_tables_from_html(input_html)
 
-            # Ottieni la prima pagina del PDF temporaneo
-            page = reader.pages[0]
+    # Crea il documento finale
+    doc = SimpleDocTemplate(output_pdf, pagesize=letter)
+    elements = []
 
-            # Inserisci l'immagine PNG nella stessa pagina della tabella
-            width, height = letter
-            img_width = width - 2 * inch  # Occupare tutto lo spazio orizzontale
-            img_height = img_width * 2 / 3  # Mantenere le proporzioni
-            img_x = inch
-            img_y = height - img_height - inch
+    # Aggiunge l'immagine (grafico) in cima
+    img = Image(image_path, width=img_width, height=img_height)
+    elements.append(img)
+    elements.append(Spacer(1, 20))  # Spazio tra il grafico e la prima tabella
 
-            # Crea un canvas ReportLab per disegnare l'immagine sulla stessa pagina
-            image_temp_pdf = "image_temp.pdf"
-            c = canvas.Canvas(image_temp_pdf, pagesize=letter)
-            c.drawImage(image_path, img_x, img_y, width=img_width, height=img_height)
-            c.save()
+    # Formatta e aggiunge la prima tabella con intestazione
+    if table1_data:
+        table1 = Table([table1_header] + table1_data)  # Aggiunge l'intestazione ai dati
+        table1.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(table1)
+        elements.append(Spacer(1, 30))  # Spazio tra le tabelle
 
-            # Unisci la pagina con l'immagine con la pagina della tabella
-            with open(image_temp_pdf, "rb") as image_file:
-                image_reader = PdfReader(image_file)
-                image_page = image_reader.pages[0]
-                page.merge_page(image_page)
+    # Formatta e aggiunge la seconda tabella con intestazione
+    if table2_data:
+        table2 = Table([table2_header] + table2_data)  # Aggiunge l'intestazione ai dati
+        table2.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(table2)
 
-            # Aggiungi la pagina modificata al writer
-            writer.add_page(page)
+    # Genera il PDF finale con grafico e tabelle
+    doc.build(elements)
 
-            # Aggiungi le altre pagine del PDF temporaneo
-            for p in reader.pages[1:]:
-                writer.add_page(p)
+    print(f"File PDF '{output_pdf}' creato con successo.")
 
-            # Salva il PDF modificato
-            with open(output_pdf, "wb") as output:
-                writer.write(output)
+def extract_tables_from_html(html_file):
+    """
+    Estrae le due tabelle dal file HTML, ignorando le prime due righe.
+    Restituisce due liste di liste: una per ogni tabella.
+    """
+    with open(html_file, "r", encoding="utf-8") as file:
+        soup = BeautifulSoup(file, "html.parser")
 
-        print(f"File PDF '{output_pdf}' creato con successo.")
+    # Trova tutte le tabelle nel file HTML
+    tables = soup.find_all("table")
 
-    except PdfReadError as e:
-        print(f"Errore durante la lettura del PDF: {e}")
-    except FileNotFoundError as e:
-        print(f"File non trovato: {e}")
-    except Exception as e:
-        print(f"Si è verificato un errore inatteso: {e}")
+    if len(tables) < 2:
+        print("Errore: il file HTML non contiene abbastanza tabelle!")
+        return [], []
+
+    # Funzione per estrarre i dati da una tabella
+    def extract_table_data(table):
+        rows = table.find_all("tr")[2:]  # Ignora le prime due righe
+        return [[cell.get_text(strip=True) for cell in row.find_all(["td", "th"])] for row in rows]
+
+    # Estrai dati dalle due tabelle
+    table1_data = extract_table_data(tables[0])
+    table2_data = extract_table_data(tables[1])
+
+    return table1_data, table2_data
 # Esempio di utilizzo
 
 if __name__ == '__main__':
     # Esempio di utilizzo
-    image_file = "10_output_events.html.png"
-    markdown_file = "10_output_events.md"
-    pdf_file = "10_output_relazione.pdf"
+    image_file = "49_output_events.html.png"
+    markdown_file = "49_output_events.md"
+    pdf_file = "49_output_relazione.pdf"
     #convert_html_to_pdf("10_output_events.stats.html", "report1.pdf")
-    convert_html_to_pdf_with_image("10_output_events.stats.html", "report1.pdf",image_file)
+    convert_html_to_pdf_with_image("49_output_events.stats.html", "49_report.pdf",image_file)
     #create_pdf_with_image_and_markdown(image_file, markdown_file, pdf_file)
