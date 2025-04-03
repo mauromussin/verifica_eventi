@@ -169,11 +169,15 @@ def convert_html_to_pdf_with_image(input_html, output_pdf, image_path):
     width, _ = letter
     margin = 72  # Margine di 1 pollice
     img_width = width   # Occupa quasi tutta la larghezza
-    img_height = img_width * 2 / 3  # Mantiene le proporzioni
+    img_height = img_width * 1 / 2  # Mantiene le proporzioni
 
     # Intestazioni delle tabelle
-    table1_header = ["First Time", "d", "SEL_staz", "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"]
-    #table1_header = ["First Time", "d", "SEL_staz", "SEL_ARPA", "LAeq_staz", "LAeq_ARPA", "LMax_staz", "LMax_ARPA"]
+    #table1_header = ["First Time", "d", "SEL_staz", "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"]
+    #table1_header = ["Data e Ora", "SEL Gestore", "SEL ARPA", "LAeq Gestore", "LAeq ARPA", "LAmax Gestore", "LAmax ARPA"]
+    table1_header = [
+       ["Data e Ora", "SEL", "", "LAeq", "", "LAmax", ""],
+       ["", "Gestore", "ARPA", "Gestore", "ARPA", "Gestore", "ARPA"]
+   ]
     table2_header = ["Parametro", "Media", "Varianza", "Test K-S", "p-value", "Esito confronto"]
 
     # Estrai i dati delle tabelle dal file HTML
@@ -190,18 +194,21 @@ def convert_html_to_pdf_with_image(input_html, output_pdf, image_path):
 
     # Formatta e aggiunge la prima tabella con intestazione
     if table1_data:
-        table1 = Table([table1_header] + table1_data)  # Aggiunge l'intestazione ai dati
-        table1.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
-        elements.append(table1)
-        elements.append(Spacer(1, 30))  # Spazio tra le tabelle
+       table1 = Table(table1_header + table1_data, repeatRows=2)  # Aggiunge l'intestazione ai dati e ripete le prime due righe
+       table1.setStyle(TableStyle([
+           ('SPAN', (1, 0), (2, 0)),  # Unisce le celle "SEL"
+           ('SPAN', (3, 0), (4, 0)),  # Unisce le celle "LAeq"
+           ('SPAN', (5, 0), (6, 0)),  # Unisce le celle "LAmax"
+           ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+           ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+           ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+           ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+           ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+           ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+           ('GRID', (0, 0), (-1, -1), 1, colors.black),
+       ]))
+       elements.append(table1)
+       elements.append(Spacer(1, 30))  # Spazio tra le tabelle
 
     # Formatta e aggiunge la seconda tabella con intestazione
     if table2_data:
@@ -238,12 +245,21 @@ def extract_tables_from_html(html_file):
         return [], []
 
     # Funzione per estrarre i dati da una tabella
-    def extract_table_data(table):
-        rows = table.find_all("tr")[2:]  # Ignora le prime due righe
-        return [[cell.get_text(strip=True) for cell in row.find_all(["td", "th"])] for row in rows]
+    def extract_table_data(table, riordina=False):
+        rows = table.find_all("tr")[1:]  # Ignora la prima riga
+        data = [[cell.get_text(strip=True) for cell in row.find_all(["td", "th"])] for row in rows]
+        if riordina:
+            # Riordina i dati secondo l'ordine desiderato
+            reordered_data = []
+            for row in data:
+                reordered_row = [row[0],  row[2], row[5], row[3], row[6], row[4], row[7]]
+                reordered_data.append(reordered_row)
+            return reordered_data
+        else:
+            return data
 
     # Estrai dati dalle due tabelle
-    table1_data = extract_table_data(tables[0])
+    table1_data = extract_table_data(tables[0], riordina=True)
     table2_data = extract_table_data(tables[1])
 
     return table1_data, table2_data
