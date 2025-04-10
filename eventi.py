@@ -279,7 +279,7 @@ def save_results_to_csv(results, output_file):
                                         "LMax_staz","SEL_ARPA","LAeq_ARPA","LMax_ARPA"])
     df.to_csv(output_file, index=False, float_format='%.2f', mode='a', header=True)
 
-def confronta_distribuzioni(df,output_file):
+def confronta_distribuzioni(df, output_file):
     """
     Calcola le medie e le varianze delle colonne specificate, confronta le medie e le varianze tra coppie di colonne
     e verifica con un test statistico se le coppie di colonne provengono dalla stessa distribuzione.
@@ -290,43 +290,56 @@ def confronta_distribuzioni(df,output_file):
     Returns:
         None
     """
-    # Definisci l'ordine desiderato delle colonne
+    # Definisci l'ordine desiderato delle colonne e le nuove etichette
     ordine_colonne = ["First Time", "d", "SEL_staz", "LAeq_staz", "LMax_staz", "SEL_ARPA", "LAeq_ARPA", "LMax_ARPA"]
+    nuove_etichette = {
+        "SEL_staz": "SEL Gestore",
+        "SEL_ARPA": "SEL ARPA",
+        "LAeq_staz": "LAeq Gestore",
+        "LAeq_ARPA": "LAeq ARPA",
+        "LMax_staz": "LMax Gestore",
+        "LMax_ARPA": "LMax ARPA"
+    }
     # Riordina il DataFrame
     df = df[ordine_colonne]
+    # Rinomina le colonne per la visualizzazione nella tabella degli eventi
+    df_renamed = df.rename(columns=nuove_etichette)
 
-    fileout=output_file+'.stats.html'
+    fileout = output_file + '.stats.html'
     # Aggiungi intestazione HTML
     with open(fileout, "w") as f:
-      f.write("<html><head><title>Confronto Distribuzioni</title></head><body>")
-      f.write("<h1>Confronto delle Distribuzioni</h1>")
-      
-      # Tabella degli eventi in parallelo
-      f.write("<h2>Eventi in parallelo</h2>")
-      f.write(df.to_html(index=False,float_format="%.2f"))
-      f.write("<br><br>")
-      
-      # Calcola le medie
-      medie = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].mean()
-      
-      # Calcola le varianze
-      varianze = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].var()
-     
-      risultati = []     
-      # Confronta le medie e le varianze tra coppie di colonne
-      coppie = [('SEL_staz', 'SEL_ARPA'), ('LAeq_staz', 'LAeq_ARPA'), ('LMax_staz', 'LMax_ARPA')]
-      for col1, col2 in coppie:
-          # Test di Kolmogorov-Smirnov
-          stat, p = stats.ks_2samp(df[col1], df[col2])
-          esito = "simili" if p > 0.05 else "diverse"
-          risultati.append([col1, medie[col1], varianze[col1], "", "", ""])
-          risultati.append([col2, medie[col2], varianze[col2], stat, p, esito])
-          
-      # Creazione DataFrame per tabella HTML
-      tabella_df = pd.DataFrame(risultati, columns=["Colonna", "Medie", "Varianza", "Test K-S", "p-value", "Esito"])   
-      f.write(tabella_df.to_html(index=False))
-      # Chiudi il tag body e html
-      f.write("</body></html>")
+        f.write("<html><head><title>Confronto Distribuzioni</title></head><body>")
+        f.write("<h1>Confronto delle Distribuzioni</h1>")
+
+        # Tabella degli eventi in parallelo
+        f.write("<h2>Eventi in parallelo</h2>")
+        f.write(df_renamed.to_html(index=False, float_format="%.2f"))
+        f.write("<br><br>")
+
+        # Calcola le medie
+        medie = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].mean()
+
+        # Calcola le varianze
+        varianze = df[['SEL_staz', 'LAeq_staz', 'LMax_staz', 'SEL_ARPA', 'LAeq_ARPA', 'LMax_ARPA']].var()
+
+        risultati = []
+        # Confronta le medie e le varianze tra coppie di colonne
+        coppie_originali = [('SEL_staz', 'SEL_ARPA'), ('LAeq_staz', 'LAeq_ARPA'), ('LMax_staz', 'LMax_ARPA')]
+        for col1_orig, col2_orig in coppie_originali:
+            col1_label = nuove_etichette[col1_orig]
+            col2_label = nuove_etichette[col2_orig]
+            # Test di Kolmogorov-Smirnov
+            stat, p = stats.ks_2samp(df[col1_orig], df[col2_orig])
+            esito = "simili" if p > 0.05 else "diverse"
+            risultati.append([col1_label, f"{medie[col1_orig]:.2f}", f"{varianze[col1_orig]:.2f}", "", "", ""])
+            risultati.append([col2_label, f"{medie[col2_orig]:.2f}", f"{varianze[col2_orig]:.2f}", f"{stat:.3f}", f"{p:.3f}", esito])
+
+        # Creazione DataFrame per tabella HTML
+        tabella_df = pd.DataFrame(risultati, columns=["Parametro", "Media", "Varianza", "Test K-S", "p-value", "Esito"])
+        f.write("<h2>Confronto Parametri Acustici</h2>")
+        f.write(tabella_df.to_html(index=False))
+        # Chiudi il tag body e html
+        f.write("</body></html>")
 
     print(f"HTML creato con successo: {fileout}")
 
@@ -380,6 +393,10 @@ def process_and_merge_files(input_file_path):
             results_df = identify_and_calculate_events(merged_df, threshold, duration)
             Max=df_staz['LAeq'].max()
             Min = df_staz[df_staz['LAeq'] > 0]['LAeq'].min()
+            Max1=df_arpa['LAeq'].max()
+            Min1=df_arpa[df_arpa['LAeq'] > 0]['LAeq'].min()
+            if Min1<Min: Min=Min1
+            if Max1>Max: Max=Max1
             # Salva i risultati in un file CSV (append)
             output_file=f'{staz}_output_events'
             
