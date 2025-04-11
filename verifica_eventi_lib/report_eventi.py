@@ -263,21 +263,4 @@ def extract_tables_from_html(html_file):
     table2_data = extract_table_data(tables[1])
 
     return table1_data, table2_data
-# Esempio di utilizzo
-
-if __name__ == '__main__':
-    # Esempio di utilizzo
-    import glob
-    image_files_list = glob.glob("*.html.png")
-    lista_base_nomi = [nome_file.replace('.html.png', '.stats.html') for nome_file in image_files_list]
-    lista_report=[nome_file.replace('.html.png', '.pdf') for nome_file in image_files_list]
-    elenco_file=[]
-    for i in range(len(image_files_list)):
-        elemento=[image_files_list[i],lista_base_nomi[i]]
-        elenco_file.append(elemento)
-        convert_html_to_pdf_with_image(lista_base_nomi[i], lista_report[i],image_files_list[i])
-    #image_file = "49_output_events.html.png"
-    #markdown_file = "49_output_events.md"
-    #pdf_file = "49_output_relazione.pdf"
-    #convert_html_to_pdf_with_image("49_output_events.stats.html", "49_report.pdf",image_file)
     

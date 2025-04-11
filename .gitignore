@@ -1,0 +1,15 @@
+# Ignora file di log
+*.log
+
+# Ignora file temporanei
+*.tmp
+# Ignora file html
+*.html
+# Ignora file txt
+*.txt
+# Ignora file png
+*.png
+# Ignora file md
+*.md
+# Ignora file PDF
+*.pdf

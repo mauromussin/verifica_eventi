@@ -423,11 +423,5 @@ def process_and_merge_files(input_file_path):
         return None
 
 
-input_file = 'MXP-1-2024.CSV' #sostituisci il percorso
-
-result_df = process_and_merge_files(input_file)
-
-if result_df is not None:
-    print(result_df)
 
 
