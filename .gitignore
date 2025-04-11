@@ -3,13 +3,31 @@
 
 # Ignora file temporanei
 *.tmp
+
 # Ignora file html
 *.html
+
 # Ignora file txt
 *.txt
+
 # Ignora file png
 *.png
+
 # Ignora file md
 *.md
+
 # Ignora file PDF
 *.pdf
+
+# Ignora directory data
+data/
+
+# Ignora la directory di cache di Spyder
+.spyder-py3/
+
+# Ignora i file di configurazione di Spyder
+.spyproject
+
+# Ignora altre directory di cache Python
+__pycache__/
+*.pyc
