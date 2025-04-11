@@ -57,6 +57,22 @@ Questo script Python contiene le istruzioni principali per eseguire il calcolo d
 
 Il file di input che contiene tutte le informazioni può essere passato come argomento del file oppure può essere inserito manualmente in fase di esecuzione. Anche la cartella di destinazione dei file PDF può essere passata come argomento oppure viene richiesta in fase di esecuzione.
 
+** Esempio di file di input **
+
+Nome;id;file_staz;file_ARPA;thr;dur
+Arsago Cimitero;10;./Dati_SEA/1009122024.his.txt;Arsago Cimitero 2024.txt;62;17
+Casorate - V. M. Rosa;49;./Dati_SEA/4909122024.his.txt;misura_ARPA_Monterosa_9_12_24.txt;58;20
+Ferno - via Moncucco;6;./Dati_SEA/0604122024.his.txt;Ferno 2024.txt;60;10
+Lonate Cimitero (MM);1505;./Dati_SEA/150504122024.his.txt;misura_ARPA_Lonate_cimitero_4_12_24.txt;67;9
+Lonate - via S. Savina;8;./Dati_SEA/0804122024.his.txt;misura_ARPA_Lonate_SSavina_4_12_24.txt;63;10
+S. Savina Mobile;1518;;;
+Somma - Morgampo;1519;./Dati_SEA/Temporanea/151910122024.his.txt;misura_ARPA_Morgampo_10_12_24.txt;62;22
+Somma - V. Cabagaggio;45;./Dati_SEA/4517092024.his.txt;misura_ARPA_Cabagaggio_17_9_24.txt;60;22
+Somma - Maddalena;24;./Dati_SEA/2417092024.his.txt;misura_ARPA_Maddalena_17_9_24.txt;58;20
+Somma - Magazzino;3;./Dati_SEA/0309122024.his.txt;misura_ARPA_Magazzino_9_12_24;62;20
+Somma - Rodari;1;;;
+Turbigo - Via Plati;1515;./Dati_SEA/151509122024.his.txt;Turbigo 2024.txt;55;8
+
 **Esempi di esecuzione:**
 
 * `python main.py nome_file_input.csv cartella_output`

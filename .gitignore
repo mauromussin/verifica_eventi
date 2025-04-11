@@ -7,8 +7,9 @@
 # Ignora file html
 *.html
 
-# Ignora file txt
+# Ignora file txt e csv
 *.txt
+*.csv
 
 # Ignora file png
 *.png
