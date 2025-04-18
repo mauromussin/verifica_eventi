@@ -32,3 +32,6 @@ data/
 # Ignora altre directory di cache Python
 __pycache__/
 *.pyc
+
+# Ignora il file main se è nella cartella verifica_eventi_lib
+./verifica_eventi_lib/main.py

@@ -9,7 +9,11 @@ Questo repository contiene script Python per l'analisi e la reportistica di dati
 3.  **`main.py`**: Script principale per l'esecuzione sequenziale di `eventi.py` e `report_eventi.py`.
 
 ---
+### Prerequisiti
+- Installare requirements (sono state inserite le versioni funzionanti)
+- Installare orca e assicurarsi che sia nel PATH (vedi https://github.com/plotly/orca/releases)
 
+---
 ## `verifica_eventi_lib/eventi.py`
 
 Questo script Python ha lo scopo di elaborare un file di dati (ad esempio, un CSV) contenente informazioni sugli eventi acustici e di generare un DataFrame contenente informazioni riassuntive sugli eventi.
@@ -26,9 +30,7 @@ Le funzioni contenute in questo modulo sono utilizzate dallo script `main.py` pe
 
 ---
 
-### Prerequisiti
-- Installare requirements (sono state inserite le versioni funzionanti)
-- Installare orca e assicurarsi che sia nel PATH (vedi https://github.com/plotly/orca/releases)
+
 
 ## `verifica_eventi_lib/report_eventi.py`
 
