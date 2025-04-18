@@ -55,14 +55,16 @@ if __name__ == "__main__":
         os.makedirs(output_folder)
         
      
-    print ("...lettura dati di input da {input_file} ed elaborazione su {output_folder}...")
-    result_df = process_and_merge_files(input_file)
+    print (f"...lettura dati di input da {input_file} ed elaborazione su {output_folder}...")
+    result_df = process_and_merge_files(input_file,output_folder)
+
 
     if result_df is not None:
             print("...eventi identificati:")
             print(result_df)
             print("Generazione report pdf...")
-            image_files_list = glob.glob("*.html.png")
+
+            image_files_list = glob.glob(os.path.join(output_folder, "*.html.png"))
             lista_base_nomi = [nome_file.replace('.html.png', '.stats.html') for nome_file in image_files_list]
             lista_report = [os.path.join(output_folder, nome_file.replace('.html.png', '.pdf')) for nome_file in image_files_list] 
             elenco_file = []

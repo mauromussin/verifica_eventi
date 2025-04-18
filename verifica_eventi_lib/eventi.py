@@ -17,6 +17,7 @@ import plotly.graph_objects as go
 
 import plotly.io as pio
 
+print(pio.renderers.default)
 def plot_merged_df_plotly(merged_df, output_file=None, y_min=35, y_max=90, soglia=None, Nome=None):
     """
     Plotta il contenuto del DataFrame merged_df usando Plotly.
@@ -49,7 +50,8 @@ def plot_merged_df_plotly(merged_df, output_file=None, y_min=35, y_max=90, sogli
 
     # Aggiungi la linea di soglia tratteggiata, se specificata
     if soglia is not None:
-        fig.add_trace(go.Scatter(x=merged_df['Time'], y=[soglia]*len(merged_df), mode='lines', name='Soglia', line=dict(color='green', dash='dash', width=1)))
+        fig.add_trace(go.Scatter(x=merged_df['Time'], y=[soglia]*len(merged_df), mode='lines', name='Soglia',
+                                 line=dict(color='green', dash='dash', width=1)))
     
     if Nome is None:    
     # prendi l'id della stazione se non viene passato il nome
@@ -78,7 +80,9 @@ def plot_merged_df_plotly(merged_df, output_file=None, y_min=35, y_max=90, sogli
     if output_file:
         pio.write_html(fig, file=output_file, auto_open=False)
         print(f"Grafico salvato in {output_file}")
-        fig.write_image(f"{output_file}.png")
+        #fig.write_image(f'{output_file}.png')
+        fig.write_image(f'{output_file}.png', engine="orca")
+        #pio.write_image(fig, file=f'{output_file}.png', format="png")
     else:
         fig.show()
 
@@ -89,20 +93,8 @@ def plot_merged_df_plotly(merged_df, output_file=None, y_min=35, y_max=90, sogli
 # plot_merged_df_plotly(merged_df, output_file='merged_plot.html') #per salvare il plot come file HTML
 # plot_merged_df_plotly(merged_df) #per visualizzare il plot nel browser
 
-#Funzione che crea il grafico in parallelo
-def plot_merged_df(merged_df,output_file):
-    from bokeh.plotting import figure, show
-    from bokeh.io import output_file
-    from bokeh.models import ColumnDataSource
 
-      # Salva il grafico come HTML
-    source = ColumnDataSource(merged_df)
 
-    p = figure(x_axis_type="datetime", title="LAeq over Time", width=1000, height=500)
-    p.line(x="Time", y="LAeq_x", source=source, legend_label="LAeq_staz", line_width=2, color="blue")
-    p.line(x="Time", y="LAeq_y", source=source, legend_label="LAeq_ARPA", line_width=2, color="red")
-
-    show(p)  # Apri il grafico in un browser
 
 #Funzione che identifica gli eventi
 """
@@ -348,13 +340,14 @@ def read_csv_to_dataframe(file_path):
     df = pd.read_csv(file_path, delimiter=';')
     return df
 
-def process_and_merge_files(input_file_path):
+def process_and_merge_files(input_file_path, output_dir):
     """
     Legge un file di input, legge i file specificati nelle colonne 'file_staz' e 'file_ARPA',
     unisce i DataFrame e converte la colonna 'Time' in formato datetime.
 
     Args:
         input_file_path (str): Percorso del file di input.
+        output_dir (str): Percorso del output folder.
 
     Returns:
         pandas.DataFrame: DataFrame unito, o None in caso di errori.
@@ -398,13 +391,14 @@ def process_and_merge_files(input_file_path):
             if Min1<Min: Min=Min1
             if Max1>Max: Max=Max1
             # Salva i risultati in un file CSV (append)
-            output_file=f'{staz}_output_events'
+            output_file=os.path.join(output_dir,f'{staz}_output_events')
             
             #Calcola le statistiche e stampa il file md
-            confronta_distribuzioni(results_df,output_file)
+            confronta_distribuzioni(results_df, output_file)
             
             # plotta il grafico e stampa il file png
-            plot_merged_df_plotly(merged_df,output_file+'.html',y_max=Max,y_min=Min,soglia=threshold,Nome=Nome_stazione) #per visualizzare il plot nel browser 
+            output_file_html=f'{output_file}.html'
+            plot_merged_df_plotly(merged_df,output_file_html,y_max=Max,y_min=Min,soglia=threshold,Nome=Nome_stazione) #per visualizzare il plot nel browser
             save_results_to_csv(results_df, output_file+'.csv')
             merged_dfs.append(merged_df)
 

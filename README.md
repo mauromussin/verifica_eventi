@@ -26,6 +26,10 @@ Le funzioni contenute in questo modulo sono utilizzate dallo script `main.py` pe
 
 ---
 
+### Prerequisiti
+- Installare requirements (sono state inserite le versioni funzionanti)
+- Installare orca e assicurarsi che sia nel PATH (vedi https://github.com/plotly/orca/releases)
+
 ## `verifica_eventi_lib/report_eventi.py`
 
 Questo script Python ha lo scopo di generare un file PDF contenente un'immagine (tipicamente un grafico) e una tabella di dati. Prende in input un file immagine PNG e un file HTML contenente una tabella.
@@ -52,6 +56,7 @@ Questo script Python contiene le istruzioni principali per eseguire il calcolo d
 * Esecuzione sequenziale delle funzioni di `eventi.py` e `report_eventi.py`.
 * Gestione dell'input del file di dati e della cartella di output per i report PDF.
 * Cancellazione dei file temporanei generati durante l'elaborazione.
+* Crea una pagina HTML con il grafico delle timehistory esplorabile con plotly: la codifica è `<id_stazione>_output_events.html`
 
 ### Come Utilizzare
 
@@ -92,6 +97,10 @@ Turbigo - Via Plati;1515;./Dati_SEA/151509122024.his.txt;Turbigo 2024.txt;55;8
 * I file PDF generati verranno salvati nella cartella di output specificata.
 * I file `.stats.html` verranno cancellati dopo la generazione dei PDF.
 
+
+**TODO**
+- automatizzare la ricerca di delay tra timehistory
+- verificare la possibilità di elaborare file nella intranet
 ---
 
 Questo README fornisce una panoramica degli script Python presenti nel repository e le istruzioni di base per il loro utilizzo. Per dettagli più specifici sul codice o sulle dipendenze, si rimanda ai commenti all'interno dei file Python stessi.
