@@ -66,19 +66,22 @@ Il file di input che contiene tutte le informazioni può essere passato come arg
 
 **Esempio di file di input**
 
-Nome;id;file_staz;file_ARPA;thr;dur  
-Arsago Cimitero;10;./Dati_SEA/1009122024.his.txt;Arsago Cimitero 2024.txt;62;17  
-Casorate - V. M. Rosa;49;./Dati_SEA/4909122024.his.txt;misura_ARPA_Monterosa_9_12_24.txt;58;20  
-Ferno - via Moncucco;6;./Dati_SEA/0604122024.his.txt;Ferno 2024.txt;60;10  
-Lonate Cimitero (MM);1505;./Dati_SEA/150504122024.his.txt;misura_ARPA_Lonate_cimitero_4_12_24.txt;67;9  
-Lonate - via S. Savina;8;./Dati_SEA/0804122024.his.txt;misura_ARPA_Lonate_SSavina_4_12_24.txt;63;10  
+Nome;id;file_staz;file_ARPA;thr;dur;lag  
+Arsago Cimitero;10;./Dati_SEA/1009122024.his.txt;Arsago Cimitero 2024.txt;62;17;0  
+Casorate - V. M. Rosa;49;./Dati_SEA/4909122024.his.txt;misura_ARPA_Monterosa_9_12_24.txt;58;20;0  
+Ferno - via Moncucco;6;./Dati_SEA/0604122024.his.txt;Ferno 2024.txt;60;10;0  
+Lonate Cimitero (MM);1505;./Dati_SEA/150504122024.his.txt;misura_ARPA_Lonate_cimitero_4_12_24.txt;67;9;0  
+Lonate - via S. Savina;8;./Dati_SEA/0804122024.his.txt;misura_ARPA_Lonate_SSavina_4_12_24.txt;63;10;0  
 S. Savina Mobile;1518;;;  
-Somma - Morgampo;1519;./Dati_SEA/Temporanea/151910122024.his.txt;misura_ARPA_Morgampo_10_12_24.txt;62;22  
-Somma - V. Cabagaggio;45;./Dati_SEA/4517092024.his.txt;misura_ARPA_Cabagaggio_17_9_24.txt;60;22  
-Somma - Maddalena;24;./Dati_SEA/2417092024.his.txt;misura_ARPA_Maddalena_17_9_24.txt;58;20  
-Somma - Magazzino;3;./Dati_SEA/0309122024.his.txt;misura_ARPA_Magazzino_9_12_24;62;20  
+Somma - Morgampo;1519;./Dati_SEA/Temporanea/151910122024.his.txt;misura_ARPA_Morgampo_10_12_24.txt;62;22;0  
+Somma - V. Cabagaggio;45;./Dati_SEA/4517092024.his.txt;misura_ARPA_Cabagaggio_17_9_24.txt;60;22;0  
+Somma - Maddalena;24;./Dati_SEA/2417092024.his.txt;misura_ARPA_Maddalena_17_9_24.txt;58;20;0  
+Somma - Magazzino;3;./Dati_SEA/0309122024.his.txt;misura_ARPA_Magazzino_9_12_24;62;20;0  
 Somma - Rodari;1;;;  
-Turbigo - Via Plati;1515;./Dati_SEA/151509122024.his.txt;Turbigo 2024.txt;55;8  
+Turbigo - Via Plati;1515;./Dati_SEA/151509122024.his.txt;Turbigo 2024.txt;55;8;0  
+
+*NOTA: per quanto riguarda il lag, conviene prima generare tutti i grafici con lag=0 e poi determinare il lag per 
+ciascuna stazione*
 
 **Esempi di esecuzione:**
 

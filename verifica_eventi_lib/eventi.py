@@ -8,13 +8,15 @@ Created on Tue Mar 11 14:12:03 2025
 import os
 import math
 import pandas as pd
+import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 import plotly.express as px
 import bokeh
-from scipy import stats
+from scipy import stats,signal
+from scipy.signal import fftconvolve
 import plotly.graph_objects as go
-
+import dtaidistance
 import plotly.io as pio
 
 print(pio.renderers.default)
@@ -93,6 +95,107 @@ def plot_merged_df_plotly(merged_df, output_file=None, y_min=35, y_max=90, sogli
 # plot_merged_df_plotly(merged_df, output_file='merged_plot.html') #per salvare il plot come file HTML
 # plot_merged_df_plotly(merged_df) #per visualizzare il plot nel browser
 
+
+def trova_massimi(df, colonna, n=5):
+ """
+ Trova i n massimi più elevati in una serie temporale contenuta in un DataFrame di Pandas.
+
+ Args:
+ df (pd.DataFrame): DataFrame contenente la serie temporale.
+ colonna (str): Nome della colonna contenente i dati della serie temporale.
+ n (int): Numero di massimi da trovare.
+
+ Returns:
+ pd.DataFrame: DataFrame contenente gli indici e i valori dei massimi.
+ """
+ serie = df[colonna].values
+ indici_massimi = np.argpartition(serie, -n)[-n:]
+ valori_massimi = serie[indici_massimi]
+
+ massimi_df = pd.DataFrame({'indice': indici_massimi, 'valore': valori_massimi})
+ massimi_df = massimi_df.sort_values(by='valore', ascending=False).reset_index(drop=True)
+
+ return massimi_df
+
+
+import pandas as pd
+import numpy as np
+from dtaidistance import dtw
+
+
+def merge_dataframes(df_staz, df_ARPA):
+    # Filtra df_staz per mantenere solo le righe con tempi che esistono in df_ARPA
+    filtered_df_staz = df_staz[df_staz['Time'].isin(df_ARPA['Time'])]
+
+    # Unisci i due DataFrame sulle colonne di tempo
+    merged_df = pd.merge(filtered_df_staz, df_ARPA, left_on='Time', right_on='Time')
+
+    return merged_df
+
+
+def calcola_sfasamento_dtw(df, colonna1, colonna2):
+    """
+    Calcola lo sfasamento tra due colonne di un DataFrame utilizzando Dynamic Time Warping (DTW).
+
+    Args:
+    df (pd.DataFrame): DataFrame contenente le serie temporali.
+    colonna1 (str): Nome della prima colonna contenente i dati della serie temporale.
+    colonna2 (str): Nome della seconda colonna contenente i dati della serie temporale.
+
+    Returns:
+    int: Sfasamento calcolato in unità di tempo (ad esempio, secondi).
+    Si applica al data_frame già unito (LAeq_x e LAeq_y)
+    """
+    serie1 = df[colonna1].values
+    serie2 = df[colonna2].values
+
+    # Calcola la distanza DTW e il percorso di allineamento
+    distanza, percorso = dtw.warping_paths(serie1, serie2)
+
+    # Trova lo sfasamento come la differenza media tra gli indici del percorso di allineamento
+    lag = int(np.mean([p[1] - p[0] for p in percorso]))
+
+    return lag
+def compute_shift(df1, df2,colonna):
+    x=df1[colonna].values
+    y=df2[colonna].values
+    corr = fftconvolve(x, y[::-1], mode='full')
+    lag=int(round(np.argmax(corr) - (len(y) - 1)))
+    return lag
+
+
+def calcola_sfasamento(df1, df2, colonna, freq_campionamento=1):
+    """
+   Calcola lo sfasamento tra due serie temporali usando cross-correlazione.
+
+   Args:
+       df1 (pd.DataFrame): Primo DataFrame con serie temporale (es. stazione)
+       df2 (pd.DataFrame): Secondo DataFrame con serie temporale (es. ARPA)
+       colonna (str): Nome colonna contenente i valori da confrontare
+       freq_campionamento (float): Frequenza di campionamento in Hz (default 1)
+
+   Returns:
+       float: Sfasamento in secondi (positivo se df2 è in ritardo rispetto a df1)
+   """
+    # Estrai le serie e rimuovi eventuali NaN
+    serie1 = df1[colonna].dropna().values
+    serie2 = df2[colonna].dropna().values
+
+    # Normalizza le serie per migliorare la cross-correlazione
+    serie1 = (serie1 - np.mean(serie1)) / (np.std(serie1) + 1e-10)
+    serie2 = (serie2 - np.mean(serie2)) / (np.std(serie2) + 1e-10)
+
+    # Calcola cross-correlazione
+    correlazione = signal.correlate(serie1, serie2, mode='full', method='auto')
+
+    # Trova il lag di massima correlazione
+    lags = signal.correlation_lags(len(serie1), len(serie2), mode='full')
+    lag_campioni = lags[np.argmax(correlazione)]
+
+    # Converti in secondi
+    lag_secondi = lag_campioni / freq_campionamento
+
+    return int(round(lag_secondi))
 
 
 
@@ -247,6 +350,7 @@ def read_and_process_file(file_path):
 
        # Conversione della colonna 'LAeq' in float
        df['LAeq'] = df['LAeq'].astype(str).str.replace(',', '.').astype(float)
+
        return df
 
     except FileNotFoundError:
@@ -261,8 +365,9 @@ def merge_dataframes(df_staz, df_ARPA):
     filtered_df_staz = df_staz[df_staz['Time'].isin(df_ARPA['Time'])]
     
     # Merge the two dataframes on the time columns
-    merged_df = pd.merge(filtered_df_staz, df_ARPA, left_on='Time', right_on='Time')
-    
+
+    merged_df =  pd.merge(filtered_df_staz, df_ARPA, on='Time')
+
     return merged_df
 
 
@@ -367,6 +472,7 @@ def process_and_merge_files(input_file_path, output_dir):
             duration = row['dur']
             staz=row['id']
             Nome_stazione=row['Nome']
+            lag=int(row['lag'])
             print(f'Elaborazione dei file stazione:{file_staz_path} ARPA {file_arpa_path}')
             # Leggi i file con le funzioni specificate
             df_staz = read_file_his(file_staz_path)
@@ -377,11 +483,31 @@ def process_and_merge_files(input_file_path, output_dir):
                 print(f"Errore: Impossibile leggere file per la riga {index}")
                 continue  # Passa alla riga successiva
 
-            # Unisci i DataFrame
-            merged_df = merge_dataframes(df_staz, df_arpa)
-
             # Converti la colonna 'Time' in datetime
-            merged_df['Time'] = pd.to_datetime(merged_df['Time'], format="%d/%m/%Y %H:%M:%S")
+            df_arpa['Time'] = pd.to_datetime(df_arpa['Time'], format="%d/%m/%Y %H:%M:%S")
+            df_staz['Time'] = pd.to_datetime(df_staz['Time'], format="%d/%m/%Y %H:%M:%S")
+
+            merged_df = pd.merge(df_staz, df_arpa, on='Time', suffixes=('_x', '_y'))
+            print("Decimo valore del df arpa prima del riallineamento:",df_arpa.iloc[9])
+
+
+            # se il lag supera 3 secondi riallinea la serie ARPA
+            if abs(lag) > 3:
+                try:
+                    df_arpa['Time'] = df_arpa['Time'] + pd.Timedelta(seconds=lag)
+                    print(f'Applicato sfasamento di {lag} secondi al dato ARPPA')
+                    print("Decimo valore del df arpa DOPO riallineamento:", df_arpa.iloc[9])
+                    merged_df = pd.merge(df_staz, df_arpa, on='Time', suffixes=('_x', '_y'))
+                except Exception as e:
+                    print('Errore nel calcolo dello sfasamento',{e})
+
+            # Unisci i DataFrame
+            #merged_df = merge_dataframes(df_staz, df_arpa)
+
+
+
+
+
             # Applica identify_and_calculate_events
             results_df = identify_and_calculate_events(merged_df, threshold, duration)
             Max=df_staz['LAeq'].max()
@@ -399,7 +525,7 @@ def process_and_merge_files(input_file_path, output_dir):
             # plotta il grafico e stampa il file png
             output_file_html=f'{output_file}.html'
             plot_merged_df_plotly(merged_df,output_file_html,y_max=Max,y_min=Min,soglia=threshold,Nome=Nome_stazione) #per visualizzare il plot nel browser
-            save_results_to_csv(results_df, output_file+'.csv')
+            #save_results_to_csv(results_df, output_file+'.csv')
             merged_dfs.append(merged_df)
 
         # Concatena tutti i DataFrame uniti in uno singolo
