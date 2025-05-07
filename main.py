@@ -35,7 +35,8 @@ oppure
 
 import sys
 from verifica_eventi_lib.eventi import process_and_merge_files
-from verifica_eventi_lib.report_eventi import convert_html_to_pdf_with_image
+
+from verifica_eventi_lib.report_merge import merge_all
 import glob
 import os
 if __name__ == "__main__":
@@ -64,23 +65,8 @@ if __name__ == "__main__":
             print(result_df)
             print("Generazione report pdf...")
 
-            image_files_list = glob.glob(os.path.join(output_folder, "*.html.png"))
-            lista_base_nomi = [nome_file.replace('.html.png', '.stats.html') for nome_file in image_files_list]
-            lista_report = [os.path.join(output_folder, nome_file.replace('.html.png', '.pdf')) for nome_file in image_files_list] 
-            elenco_file = []
-            for i in range(len(image_files_list)):
-                elemento = [image_files_list[i], lista_base_nomi[i]]
-                elenco_file.append(elemento)
-                convert_html_to_pdf_with_image(lista_base_nomi[i], lista_report[i], image_files_list[i])
-            for file_da_cancellare in lista_base_nomi:
-                try:
-                    os.remove(file_da_cancellare)
-                    print(f"File {file_da_cancellare} cancellato con successo.")
-                except FileNotFoundError:
-                    print(f"File {file_da_cancellare} non trovato.")
-                except Exception as e:
-                    print(f"Errore durante la cancellazione del file {file_da_cancellare}: {e}")
+            merge_all(input_file, output_folder,13)
             print("Elaborazione terminata!")
     else:
-            print("Errore durante l'elaborazione del file.")
+        print(f"Errore durante l'elaborazione del file {input_file}.")
     

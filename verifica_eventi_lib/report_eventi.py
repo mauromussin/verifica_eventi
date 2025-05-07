@@ -6,17 +6,85 @@ Created on Tue Mar 25 10:13:39 2025
 @author: mauro
 """
 from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer, Image
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 import markdown
 import io
 import re
+from PyPDF2.errors import PdfReadError
+from reportlab.lib import colors
+import pdfkit
+from PyPDF2 import PdfMerger, PdfReader, PdfWriter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
+from bs4 import BeautifulSoup
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spacer
+import pdfkit
+import os
+
+
+def merge_pdfs(pdf_files, output_file):
+    """
+    Unisce più file PDF in un unico file
+
+    Args:
+        pdf_files (list): Lista di percorsi dei file PDF da unire
+        output_file (str): Percorso del file PDF di output
+    """
+    merger = PdfMerger()
+
+    for pdf in pdf_files:
+        merger.append(pdf)
+
+    merger.write(output_file)
+    merger.close()
+    print(f"File PDF uniti con successo in '{output_file}'")
+
+
+def add_page_numbers(input_pdf, output_pdf):
+    """
+    Aggiunge i numeri di pagina a un PDF esistente
+
+    Args:
+        input_pdf (str): Percorso del PDF originale
+        output_pdf (str): Percorso per il nuovo PDF numerato
+    """
+    # Leggi il PDF originale
+    reader = PdfReader(input_pdf)
+    writer = PdfWriter()
+
+    # Crea un buffer per i numeri di pagina
+    packet = io.BytesIO()
+    can = canvas.Canvas(packet, pagesize=A4)
+
+    for page_num in range(len(reader.pages)):
+        # Crea il testo per il numero di pagina
+        can.setFont("Helvetica", 9)
+        can.drawString(190 * mm, 10 * mm, f"Pagina {page_num + 1}")
+        can.showPage()
+
+    can.save()
+
+    # Unisci i numeri di pagina al PDF originale
+    packet.seek(0)
+    number_pdf = PdfReader(packet)
+
+    for page_num in range(len(reader.pages)):
+        page = reader.pages[page_num]
+        if page_num < len(number_pdf.pages):
+            page.merge_page(number_pdf.pages[page_num])
+        writer.add_page(page)
+
+    # Salva il nuovo PDF
+    with open(output_pdf, "wb") as f:
+        writer.write(f)
+    print(f"Numeri di pagina aggiunti a '{output_pdf}'")
+
 
 def create_pdf_with_image_and_markdown(image_path, markdown_path, pdf_file):
-    doc = SimpleDocTemplate(pdf_file, pagesize=letter)
+    doc = SimpleDocTemplate(pdf_file, pagesize=A4)
     width, height = letter
     elements = []
     
@@ -86,7 +154,7 @@ def markdown_to_pdf(markdown_file, output_pdf):
     html_content = markdown.markdown(markdown_content)
 
     # Creiamo il documento PDF
-    doc = SimpleDocTemplate(output_pdf, pagesize=letter)
+    doc = SimpleDocTemplate(output_pdf, pagesize=A4)
     elements = []
 
     # Aggiungiamo uno stile base per il testo
@@ -146,19 +214,7 @@ def convert_html_to_pdf(input_html, output_pdf):
     pdfkit.from_file(input_html, output_pdf, options={"enable-local-file-access": ""})
     
 
-from PyPDF2 import PdfReader, PdfWriter
-from PyPDF2.errors import PdfReadError
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image
-import pdfkit
-import os
-from bs4 import BeautifulSoup
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Spacer
-import pdfkit
-import os
+
 def convert_html_to_pdf_with_image(input_html, output_pdf, image_path):
     """
     Converte un file HTML in PDF, inserendo un'immagine PNG all'inizio della pagina
@@ -184,7 +240,7 @@ def convert_html_to_pdf_with_image(input_html, output_pdf, image_path):
     table1_data, table2_data = extract_tables_from_html(input_html)
 
     # Crea il documento finale
-    doc = SimpleDocTemplate(output_pdf, pagesize=letter)
+    doc = SimpleDocTemplate(output_pdf, pagesize=A4)
     elements = []
 
     # Aggiunge l'immagine (grafico) in cima
@@ -263,4 +319,5 @@ def extract_tables_from_html(html_file):
     table2_data = extract_table_data(tables[1])
 
     return table1_data, table2_data
-    
+
+
